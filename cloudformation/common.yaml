@@ -1,0 +1,16 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: common
+
+Resources:
+  SSHKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: ed25519
+      PublicKeyMaterial: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKXTDLKU3P43+4f/EC8J0NSd5msVWvpubIHKX0xHNoX/ rbled@oxio.io"
+
+Outputs:
+  SSHKeyPair:
+    Value: !Ref SSHKeyPair
+    Export:
+      Name: !Sub "${AWS::StackName}-SSHKeyPairName"

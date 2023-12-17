@@ -1,0 +1,91 @@
+Parameters:
+  RockyLinuxAMI:
+    Type: String
+  CommonStackName:
+    Type: String
+    Default: common
+
+Resources:
+  K8sNetwork:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.1.0.0/16
+      EnableDnsHostnames: False
+      Tags:
+        - Key: Name
+          Value: k8s-master
+
+  K8sInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: k8s-igw
+
+  K8sInternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref K8sInternetGateway
+      VpcId: !Ref K8sNetwork
+
+  K8sRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref K8sNetwork
+      Tags:
+      - Key: Name
+        Value: k8s-rt
+
+  K8sDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: K8sInternetGatewayAttachment
+    Properties:
+       RouteTableId: !Ref K8sRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref K8sInternetGateway
+
+  K8sMasterSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: "10.1.0.0/24"
+      #MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: k8s-az1
+      VpcId: !Ref K8sNetwork
+
+  K8sMasterDefaultRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref K8sMasterSubnetAz1
+      RouteTableId: !Ref K8sRouteTable
+
+  K8sSSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH traffic from anywhere
+      GroupName: k8s-allow-ssh
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: k8s-allow-ssh
+      VpcId: !Ref K8sNetwork
+
+  K8sMaster:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      ImageId: !Ref RockyLinuxAMI
+      SubnetId: !Ref K8sMasterSubnetAz1
+      KeyName:
+        Fn::ImportValue: !Sub '${CommonStackName}-SSHKeyPairName'
+      SecurityGroupIds:
+        - !GetAtt K8sSSHSecurityGroup.GroupId
+      Tags:  
+        - Key: Name
+          Value: k8s-master
