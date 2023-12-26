@@ -3,7 +3,6 @@ Parameters:
     Type: String
   CommonStackName:
     Type: String
-    Default: common
 
 Resources:
   MgmtNetwork:
@@ -47,6 +46,7 @@ Resources:
   MgmtDefaultSubnet:
     Type: AWS::EC2::Subnet
     Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs ] # us-east-1b
       CidrBlock: 10.0.0.0/24
       MapPublicIpOnLaunch: True
       Tags:
@@ -88,3 +88,13 @@ Resources:
       Tags:
         - Key: Name
           Value: orchestrator
+
+Outputs:
+  VPCId:
+    Value: !Ref MgmtNetwork
+    Export:
+      Name: !Sub "${AWS::StackName}-VPCId"
+  RouteTable:
+    Value: !Ref MgmtRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-RouteTable"

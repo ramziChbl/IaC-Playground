@@ -1,5 +1,8 @@
 {
   "Parameters": {
-    "RockyLinuxAMI": "ami-08f362c39d03a4eb5"
+    "RockyLinuxAMI": "ami-08f362c39d03a4eb5",
+    "CommonStackName": "common",
+    "MgmtStackName": "management",
+    "K8sStackName": "k8s"
   }
 }
