@@ -27,7 +27,8 @@ aws cloudformation delete-stack --stack-name common
 | VPC        | Subnet              | CIDR        | AZ         |
 |------------|---------------------|-------------|------------|
 | management | mgmt-default-subnet | 10.0.0.0/16 | us-east-1b |
-| k8s        | k8s-az1             | 10.1.0.0/16 | us-east-1a |
+| k8s        | k8s-az1             | 10.1.1.0/16 | us-east-1a |
+| k8s        | k8s-az2             | 10.1.2.0/16 | us-east-1b |
 
 
 | Route Table | Destination | Target                        |
