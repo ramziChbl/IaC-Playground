@@ -1,0 +1,35 @@
+Parameters:
+  RockyLinuxAMI:
+    Type: String
+  MgmtStackName:
+    Type: String
+  K8sStackName:
+    Type: String
+
+Resources:
+  MgmtK8sPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub '${MgmtStackName}-VPCId'
+      PeerVpcId:
+        Fn::ImportValue: !Sub '${K8sStackName}-VPCId'
+      Tags:
+        - Key: Name
+          Value: mgmt-k8s
+
+  MgmtK8sRoute:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId:
+          Fn::ImportValue: !Sub '${MgmtStackName}-RouteTable'
+       DestinationCidrBlock: 10.1.0.0/16
+       VpcPeeringConnectionId: !Ref MgmtK8sPeeringConnection
+
+  K8sMgmtRoute:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId:
+          Fn::ImportValue: !Sub '${K8sStackName}-RouteTable'
+       DestinationCidrBlock: 10.0.0.0/16
+       VpcPeeringConnectionId: !Ref MgmtK8sPeeringConnection
