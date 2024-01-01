@@ -1,0 +1,240 @@
+Parameters:
+  RockyLinuxAMI:
+    Type: String
+  CommonStackName:
+    Type: String
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.1.0.0/16
+      EnableDnsHostnames: False
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-igw'
+
+  VPCInternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-public-rt'
+
+  PublicSubnetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCInternetGatewayAttachment
+    Properties:
+       RouteTableId: !Ref PublicSubnetRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref InternetGateway
+
+  PublicSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: "10.1.1.0/24"
+      #MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public-az1'
+      VpcId: !Ref VPC
+
+  PublicSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      CidrBlock: "10.1.2.0/24"
+      #MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public-az2'
+      VpcId: !Ref VPC
+
+  PublicSubnetAz1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetAz1
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  PublicSubnetAz2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetAz2
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  NatEipAz1:
+    Type: AWS::EC2::EIP
+    DependsOn: VPCInternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatEipAz2:
+    Type: AWS::EC2::EIP
+    DependsOn: VPCInternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGatewayAz1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipAz1.AllocationId
+      SubnetId: !Ref PublicSubnetAz1
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-ngw-az1'
+
+  NatGatewayAz2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipAz2.AllocationId
+      SubnetId: !Ref PublicSubnetAz2
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-ngw-az2'
+
+  PrivateSubnetAz1RouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-nat-rt-az1'
+
+  PrivateSubnetAz2RouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-nat-rt-az2'
+
+  PrivateSubnetAz1Route:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NatGatewayAz1
+      RouteTableId: !Ref PrivateSubnetAz1RouteTable
+
+  PrivateSubnetAz2Route:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NatGatewayAz2
+      RouteTableId: !Ref PrivateSubnetAz2RouteTable
+
+  PrivateSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: "10.1.11.0/24"
+      #MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-private-az1'
+      VpcId: !Ref VPC
+
+  PrivateSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      CidrBlock: "10.1.12.0/24"
+      #MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-private-az2'
+      VpcId: !Ref VPC
+
+  PrivateSubnetAz1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PrivateSubnetAz1RouteTable
+      SubnetId: !Ref PrivateSubnetAz1
+
+  PrivateSubnetAz2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PrivateSubnetAz2RouteTable
+      SubnetId: !Ref PrivateSubnetAz2
+
+  NodesSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: '${AWS::StackName}-sg'
+      GroupDescription: Main Node Security Group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.0.0.0/8
+          Description: Allow SSH from internal network
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-sg'
+      VpcId: !Ref VPC
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub '${AWS::StackName}-lt'
+      LaunchTemplateData:
+        ImageId: !Ref RockyLinuxAMI
+        InstanceType: t2.small
+        KeyName:
+          Fn::ImportValue: !Sub '${CommonStackName}-SSHKeyPairName'
+        SecurityGroupIds:
+          - !Ref NodesSecurityGroup
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub '${AWS::StackName}'
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            dnf upgrade -y
+            dnf install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+            systemctl enable amazon-ssm-agent
+            systemctl start amazon-ssm-agent
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub '${AWS::StackName}-asg'
+      DesiredCapacity: '2'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: '0'
+      MaxSize: '5'
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnetAz1
+        - !Ref PrivateSubnetAz2
+
+Outputs:
+  VPCId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VPCId"
+  RouteTableAz1:
+    Value: !Ref PrivateSubnetAz1RouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-RouteTableAz1"
+  RouteTableAz2:
+    Value: !Ref PrivateSubnetAz2RouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-RouteTableAz2"
