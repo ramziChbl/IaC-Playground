@@ -18,7 +18,7 @@ Resources:
         - Key: Name
           Value: mgmt-k8s
 
-  MgmtK8sRoute:
+  MgmtK8sMasterRoute:
     Type: AWS::EC2::Route
     Properties:
        RouteTableId:
@@ -26,10 +26,18 @@ Resources:
        DestinationCidrBlock: 10.1.0.0/16
        VpcPeeringConnectionId: !Ref MgmtK8sPeeringConnection
 
-  K8sMgmtRoute:
+  K8sMasterMgmtRouteAz1:
     Type: AWS::EC2::Route
     Properties:
        RouteTableId:
-          Fn::ImportValue: !Sub '${K8sStackName}-RouteTable'
+          Fn::ImportValue: !Sub '${K8sStackName}-RouteTableAz1'
+       DestinationCidrBlock: 10.0.0.0/16
+       VpcPeeringConnectionId: !Ref MgmtK8sPeeringConnection
+
+  K8sMasterMgmtRouteAz2:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId:
+          Fn::ImportValue: !Sub '${K8sStackName}-RouteTableAz2'
        DestinationCidrBlock: 10.0.0.0/16
        VpcPeeringConnectionId: !Ref MgmtK8sPeeringConnection

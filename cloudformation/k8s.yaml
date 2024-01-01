@@ -27,23 +27,23 @@ Resources:
       InternetGatewayId: !Ref K8sInternetGateway
       VpcId: !Ref K8sNetwork
 
-  K8sRouteTable:
+  K8sMasterRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref K8sNetwork
       Tags:
       - Key: Name
-        Value: k8s-rt
+        Value: k8s-internet-rt
 
-  K8sDefaultRoute:
+  K8sInternetRoute:
     Type: AWS::EC2::Route
     DependsOn: K8sInternetGatewayAttachment
     Properties:
-       RouteTableId: !Ref K8sRouteTable
+       RouteTableId: !Ref K8sMasterRouteTable
        DestinationCidrBlock: 0.0.0.0/0
        GatewayId: !Ref K8sInternetGateway
 
-  K8sMasterSubnetAz1:
+  K8sMasterPublicSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [ 0, !GetAZs ]
@@ -51,10 +51,10 @@ Resources:
       #MapPublicIpOnLaunch: True
       Tags:
         - Key: Name
-          Value: k8s-az1
+          Value: k8s-public-az1
       VpcId: !Ref K8sNetwork
 
-  K8sMasterSubnetAz2:
+  K8sMasterPublicSubnetAz2:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [ 1, !GetAZs ]
@@ -62,35 +62,130 @@ Resources:
       #MapPublicIpOnLaunch: True
       Tags:
         - Key: Name
-          Value: k8s-az2
+          Value: k8s-public-az2
       VpcId: !Ref K8sNetwork
 
-  K8sMasterSubnetAz1DefaultRouteTableAssociation:
+  K8sMasterPublicSubnetAz1DefaultRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref K8sMasterSubnetAz1
-      RouteTableId: !Ref K8sRouteTable
+      SubnetId: !Ref K8sMasterPublicSubnetAz1
+      RouteTableId: !Ref K8sMasterRouteTable
 
-  K8sMasterSubnetAz2DefaultRouteTableAssociation:
+  K8sMasterPublicSubnetAz2DefaultRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref K8sMasterSubnetAz2
-      RouteTableId: !Ref K8sRouteTable
+      SubnetId: !Ref K8sMasterPublicSubnetAz2
+      RouteTableId: !Ref K8sMasterRouteTable
 
   K8sSSHSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow SSH traffic from anywhere
+      GroupDescription: Allow SSH and Salt traffic
       GroupName: k8s-allow-ssh
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 10.0.0.0/8
+          Description: Allow SSH from internal network
       Tags:
         - Key: Name
           Value: k8s-allow-ssh
       VpcId: !Ref K8sNetwork
+
+  K8sMasterPublicIpAz1:
+    Type: AWS::EC2::EIP
+    DependsOn: K8sInternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  K8sMasterPublicIpAz2:
+    Type: AWS::EC2::EIP
+    DependsOn: K8sInternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  K8sNatGatewayAz1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt K8sMasterPublicIpAz1.AllocationId
+      SubnetId: !Ref K8sMasterPublicSubnetAz1
+      Tags:
+        - Key: Name
+          Value: "k8s-master-ngw-az1"
+
+  K8sNatGatewayAz2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt K8sMasterPublicIpAz2.AllocationId
+      SubnetId: !Ref K8sMasterPublicSubnetAz2
+      Tags:
+        - Key: Name
+          Value: "k8s-master-ngw-az2"
+
+  K8sMasterNatRouteTableAz1:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref K8sNetwork
+      Tags:
+      - Key: Name
+        Value: k8s-nat-rt-az1
+
+  K8sMasterNatRouteTableAz2:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref K8sNetwork
+      Tags:
+      - Key: Name
+        Value: k8s-nat-rt-az2
+
+  K8sMasterNatRouteAz1:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref K8sNatGatewayAz1
+      RouteTableId: !Ref K8sMasterNatRouteTableAz1
+
+  K8sMasterNatRouteAz2:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref K8sNatGatewayAz2
+      RouteTableId: !Ref K8sMasterNatRouteTableAz2
+
+  K8sMasterPrivateSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: "10.1.11.0/24"
+      #MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: k8s-private-az1
+      VpcId: !Ref K8sNetwork
+
+  K8sMasterPrivateSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      CidrBlock: "10.1.12.0/24"
+      #MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: k8s-private-az2
+      VpcId: !Ref K8sNetwork
+
+  PrivateSubnetAz1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref K8sMasterNatRouteTableAz1
+      SubnetId: !Ref K8sMasterPrivateSubnetAz1
+
+  PrivateSubnetAz2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref K8sMasterNatRouteTableAz2
+      SubnetId: !Ref K8sMasterPrivateSubnetAz2
 
   K8sMasterLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -120,22 +215,26 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       AutoScalingGroupName: k8s-master-ag
-      DesiredCapacity: '1'
+      DesiredCapacity: '2'
       LaunchTemplate:
         LaunchTemplateId: !Ref K8sMasterLaunchTemplate
         Version: !GetAtt K8sMasterLaunchTemplate.LatestVersionNumber
       MinSize: '0'
       MaxSize: '3'
       VPCZoneIdentifier:
-        - !Ref K8sMasterSubnetAz1
-        - !Ref K8sMasterSubnetAz2
+        - !Ref K8sMasterPrivateSubnetAz1
+        - !Ref K8sMasterPrivateSubnetAz2
 
 Outputs:
   VPCId:
     Value: !Ref K8sNetwork
     Export:
       Name: !Sub "${AWS::StackName}-VPCId"
-  RouteTable:
-    Value: !Ref K8sRouteTable
+  RouteTableAz1:
+    Value: !Ref K8sMasterNatRouteTableAz1
     Export:
-      Name: !Sub "${AWS::StackName}-RouteTable"
+      Name: !Sub "${AWS::StackName}-RouteTableAz1"
+  RouteTableAz2:
+    Value: !Ref K8sMasterNatRouteTableAz2
+    Export:
+      Name: !Sub "${AWS::StackName}-RouteTableAz2"
