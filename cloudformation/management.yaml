@@ -63,13 +63,19 @@ Resources:
   MgmtSSHSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow SSH traffic from anywhere
+      GroupDescription: SSH and Salt traffic
       GroupName: mgmt-allow-ssh
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
+          Description: Allow SSH traffic from anywhere
+        - IpProtocol: tcp
+          FromPort: 4505
+          ToPort: 4506
+          CidrIp: 10.0.0.0/8
+          Description: Allow Salt minion requests from internal networks
       Tags:
         - Key: Name
           Value: mgmt-allow-ssh
@@ -88,6 +94,13 @@ Resources:
       Tags:
         - Key: Name
           Value: orchestrator
+      UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            dnf upgrade -y
+            curl -sL https://bootstrap.saltproject.io -o /tmp/bootstrap-salt.sh
+            chmod +x /tmp/bootstrap-salt.sh
+            /tmp/bootstrap-salt.sh -M -N   
 
 Outputs:
   VPCId:
