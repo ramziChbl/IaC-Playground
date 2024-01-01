@@ -10,14 +10,14 @@ cd cloudformation
 export AWS_PROFILE=sysops-admin
 aws cloudformation deploy --stack-name common --template-file common.yaml --parameter-overrides file://vars.json
 aws cloudformation deploy --stack-name management --template-file management.yaml --parameter-overrides file://vars.json
-aws cloudformation deploy --stack-name k8s --template-file k8s.yaml --parameter-overrides file://vars.json
+aws cloudformation deploy --stack-name k8s-master --template-file k8s-master.yaml --parameter-overrides file://vars.json
 aws cloudformation deploy --stack-name vpc-peering --template-file vpc-peering.yaml --parameter-overrides file://vars.json
 ```
 
 Tear it down:
 ```
 aws cloudformation delete-stack --stack-name vpc-peering
-aws cloudformation delete-stack --stack-name k8s
+aws cloudformation delete-stack --stack-name k8s-master
 aws cloudformation delete-stack --stack-name management
 aws cloudformation delete-stack --stack-name common
 ```

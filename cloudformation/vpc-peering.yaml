@@ -3,7 +3,7 @@ Parameters:
     Type: String
   MgmtStackName:
     Type: String
-  K8sStackName:
+  K8sMasterStackName:
     Type: String
 
 Resources:
@@ -13,7 +13,7 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub '${MgmtStackName}-VPCId'
       PeerVpcId:
-        Fn::ImportValue: !Sub '${K8sStackName}-VPCId'
+        Fn::ImportValue: !Sub '${K8sMasterStackName}-VPCId'
       Tags:
         - Key: Name
           Value: mgmt-k8s
@@ -30,7 +30,7 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
        RouteTableId:
-          Fn::ImportValue: !Sub '${K8sStackName}-RouteTableAz1'
+          Fn::ImportValue: !Sub '${K8sMasterStackName}-RouteTableAz1'
        DestinationCidrBlock: 10.0.0.0/16
        VpcPeeringConnectionId: !Ref MgmtK8sPeeringConnection
 
@@ -38,6 +38,6 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
        RouteTableId:
-          Fn::ImportValue: !Sub '${K8sStackName}-RouteTableAz2'
+          Fn::ImportValue: !Sub '${K8sMasterStackName}-RouteTableAz2'
        DestinationCidrBlock: 10.0.0.0/16
        VpcPeeringConnectionId: !Ref MgmtK8sPeeringConnection
