@@ -1,5 +1,11 @@
 Parameters:
+  Region:
+    Type: String
   RockyLinuxAMI:
+    Type: String
+  InternalHostedZoneName:
+    Type: String
+  SaltMasterFqdn:
     Type: String
   CommonStackName:
     Type: String
@@ -9,10 +15,21 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
-      EnableDnsHostnames: False
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
       Tags:
         - Key: Name
           Value: mgmt
+
+  InternalHostedZone:
+    Type: "AWS::Route53::HostedZone"
+    Properties:
+      HostedZoneConfig:
+        Comment: 'Private hosted zone for internal records'
+      Name: !Ref InternalHostedZoneName
+      VPCs:
+        - VPCId: !Ref MgmtNetwork
+          VPCRegion: !Ref Region
 
   MgmtInternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -102,11 +119,26 @@ Resources:
             chmod +x /tmp/bootstrap-salt.sh
             /tmp/bootstrap-salt.sh -M -N   
 
+  OrchestratorDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref InternalHostedZone
+      Name: !Ref SaltMasterFqdn
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt OrchestratorInstance.PrivateIp
+
 Outputs:
   VPCId:
     Value: !Ref MgmtNetwork
     Export:
       Name: !Sub "${AWS::StackName}-VPCId"
+  HostedZoneId:
+    Description: 'The ID of the hosted zone.'
+    Value: !Ref InternalHostedZone
+    Export:
+      Name: !Sub '${AWS::StackName}-InternalHostedZoneId'
   RouteTable:
     Value: !Ref MgmtRouteTable
     Export:

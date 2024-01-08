@@ -3,13 +3,16 @@ Parameters:
     Type: String
   CommonStackName:
     Type: String
+  SaltMasterFqdn:
+    Type: String
 
 Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: 10.1.0.0/16
-      EnableDnsHostnames: False
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}'
@@ -204,12 +207,20 @@ Resources:
               - Key: Name
                 Value: !Sub '${AWS::StackName}'
         UserData:
-          Fn::Base64: |
+          Fn::Base64: !Sub |
             #!/bin/bash
             dnf upgrade -y
             dnf install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
             systemctl enable amazon-ssm-agent
             systemctl start amazon-ssm-agent
+            
+            INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+            MINION_ID="${AWS::StackName}-$INSTANCE_ID"
+            
+            curl -sL https://bootstrap.saltproject.io -o /tmp/bootstrap-salt.sh
+            chmod +x /tmp/bootstrap-salt.sh
+            /tmp/bootstrap-salt.sh -A ${SaltMasterFqdn} -i $MINION_ID
+
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup

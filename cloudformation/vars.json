@@ -1,6 +1,9 @@
 {
   "Parameters": {
+    "Region": "us-east-1",
     "RockyLinuxAMI": "ami-08f362c39d03a4eb5",
+    "InternalHostedZoneName": "infra.internal",
+    "SaltMasterFqdn": "salt-master.infra.internal",
     "CommonStackName": "common",
     "MgmtStackName": "management",
     "K8sMasterStackName": "k8s-master"

@@ -8,9 +8,16 @@ Spin up the infra:
 ```
 cd cloudformation
 export AWS_PROFILE=sysops-admin
+export REGION=us-east-1
 aws cloudformation deploy --stack-name common --template-file common.yaml --parameter-overrides file://vars.json
 aws cloudformation deploy --stack-name management --template-file management.yaml --parameter-overrides file://vars.json
 aws cloudformation deploy --stack-name k8s-master --template-file k8s-master.yaml --parameter-overrides file://vars.json
+
+# Associate k8s-master vpc to private hosted zone
+hosted_zone_id=$(aws route53 list-hosted-zones --query "HostedZones[?starts_with(Name, \`infra.internal\`)].Id" --output text | cut -d'/' -f3)
+vpc_id=$(aws ec2 describe-vpcs --filter "Name=tag:Name,Values=k8s-master" --query "Vpcs[*].VpcId" --output text)
+aws route53 associate-vpc-with-hosted-zone --hosted-zone-id "${hosted_zone_id}" --vpc "VPCRegion=${REGION},VPCId=${vpc_id}"
+
 aws cloudformation deploy --stack-name vpc-peering --template-file vpc-peering.yaml --parameter-overrides file://vars.json
 ```
 
