@@ -7,6 +7,8 @@ Parameters:
     Type: String
   SaltMasterFqdn:
     Type: String
+  SaltConfigBucketName:
+    Type: String
   CommonStackName:
     Type: String
   K8sMasterStackName:
@@ -120,12 +122,21 @@ Resources:
             chmod +x /tmp/bootstrap-salt.sh
             /tmp/bootstrap-salt.sh -M -N
             
-            # Make salt-master auto-accept k8s master minions
+            cp /etc/salt/master /etc/salt/master.bak
+            # Write salt-master config
+            cat << EOF > /etc/salt/master
+            user: salt
+            autosign_file: /etc/salt/autosign.conf
+            file_roots:
+              base:
+                - /srv/salt
+            EOF
+            
+            # Make salt-master auto-accept k8s-master minions
             cat << EOF > /etc/salt/autosign.conf
             ${K8sMasterStackName}.*.${InternalHostedZoneName}
             EOF
 
-            sed -i -r 's/#(autosign_file:.+)$/\1/' /etc/salt/master
             systemctl restart salt-master
 
   OrchestratorDnsRecord:
@@ -137,6 +148,11 @@ Resources:
       TTL: '900'
       ResourceRecords:
         - !GetAtt OrchestratorInstance.PrivateIp
+
+  SaltConfigS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref SaltConfigBucketName
 
 Outputs:
   VPCId:

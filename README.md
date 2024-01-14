@@ -29,6 +29,11 @@ aws cloudformation delete-stack --stack-name management
 aws cloudformation delete-stack --stack-name common
 ```
 
+Sync salt config (not yet functional):
+```
+aws s3 sync . s3://ramzichbl-iac-playground-salt-config --delete
+```
+
 ## IP Blocks and Routes
 
 | VPC        | Subnet              | CIDR         | AZ         |
