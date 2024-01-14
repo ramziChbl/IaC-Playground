@@ -5,6 +5,8 @@ Parameters:
     Type: String
   SaltMasterFqdn:
     Type: String
+  InternalHostedZoneName:
+    Type: String
 
 Resources:
   VPC:
@@ -215,7 +217,7 @@ Resources:
             systemctl start amazon-ssm-agent
             
             INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-            MINION_ID="${AWS::StackName}-$INSTANCE_ID"
+            MINION_ID="${AWS::StackName}-$INSTANCE_ID.${InternalHostedZoneName}"
             
             curl -sL https://bootstrap.saltproject.io -o /tmp/bootstrap-salt.sh
             chmod +x /tmp/bootstrap-salt.sh

@@ -2,7 +2,7 @@
 
 The following setup deploys the following instances:
 1. orchestrator: Configuration management server and a bastion. It has a public IP
-2. k8s-master: Where K8s will be installed, doesn't have an public gateway but still needs an Internet Gateway for internet access 
+2. k8s-master: Where K8s will be installed, doesn't have a public gateway but still needs an Internet Gateway for internet access 
 
 Spin up the infra:
 ```
@@ -51,6 +51,14 @@ aws cloudformation delete-stack --stack-name common
 | k8s-nat-rt-az2 | 10.1.0.0/16 | Local                         |
 |                | 10.0.0.0/16 | !Ref MgmtK8sPeeringConnection |
 |                | 0.0.0.0/0   | !Ref K8sNatGatewayAz2         |
+
+
+
+## TODO
+
+* Add a [diagram](https://diagrams.mingrammer.com/) of the infrastructure
+* Use salt reactors
+* Leverage gitfs for salt states and pillars
 
 
 ## Useful Resources
